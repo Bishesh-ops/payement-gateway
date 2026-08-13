@@ -1,12 +1,13 @@
 import Transaction from "../models/PaymentModel.js";
 import { generateHmacSha256Hash } from "../utils/helper.js";
 import axios, { AxiosResponse } from "axios";
+import { Client, Environment, LogLevel, OrdersController} from "@paypal/paypal-server-sdk";
 import type { Request, Response } from "express";
 
 interface InitiatePaymentBody {
     amount: number;
     productId: string;
-    paymentGateway: "esewa" | "khalti";
+    paymentGateway: "esewa" | "khalti" | "paypal";
     customerName: string;
     customerEmail: string;
     customerPhone: string;
@@ -19,6 +20,25 @@ interface PaymentConfig {
     headers: any;
     responseHandler: (response: AxiosResponse) => string | undefined;
 }
+
+const paypalClient = new Client({
+  clientCredentialsAuthCredentials: {
+    oAuthClientId: process.env.PAYPAL_CLIENT_ID as string,
+    oAuthClientSecret: process.env.PAYPAL_CLIENT_SECRET as string,
+  },
+  timeout: 0,
+  environment: Environment.Sandbox,
+  logging: {
+    logLevel: LogLevel.Info,
+    logRequest:{
+      logBody: true,
+    },
+    logResponse: {
+      logHeaders: true,
+    }
+  }
+});
+const ordersController = new OrdersController(paypalClient);
 
 const initiatePayment = async (req: Request<{}, {}, InitiatePaymentBody>, res: Response) => {
     const {
