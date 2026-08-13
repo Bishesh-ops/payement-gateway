@@ -1,4 +1,5 @@
 import { createHmac, randomUUID } from "crypto";
+import axios from "axios";
 
 function generateUniqueId(){
     return `id-${randomUUID()}`;
@@ -15,4 +16,15 @@ function generateHmacSha256Hash(data: string, secret: string): string {
 
 }
 
-export { generateUniqueId, generateHmacSha256Hash };
+const convertNprToUsd = async (amountInNpr: number): Promise<string> => {
+    try{
+        const response = await axios.get("https://open.er-api.com/v6/latest/USD");
+        const UsdRate = response.data.rates.NPR;
+        return (amountInNpr / UsdRate).toFixed(2);
+    } catch (error) {
+        console.error("Error converting NPR to USD:", error);
+        throw new Error("Failed to convert currency");
+    }
+}
+
+export { generateUniqueId, generateHmacSha256Hash, convertNprToUsd };

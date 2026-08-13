@@ -1,7 +1,7 @@
 import Transaction from "../models/PaymentModel.js";
-import { generateHmacSha256Hash } from "../utils/helper.js";
+import { convertNprToUsd, generateHmacSha256Hash } from "../utils/helper.js";
 import axios, { AxiosResponse } from "axios";
-import { Client, Environment, LogLevel, OrdersController} from "@paypal/paypal-server-sdk";
+import { CheckoutPaymentIntent, Client, Environment, LogLevel, OrdersController} from "@paypal/paypal-server-sdk";
 import type { Request, Response } from "express";
 
 interface InitiatePaymentBody {
@@ -71,8 +71,47 @@ const initiatePayment = async (req: Request<{}, {}, InitiatePaymentBody>, res: R
         };
         
         let paymentConfig: PaymentConfig;
-        
-        if (paymentGateway === "esewa") {
+        if (paymentGateway === "paypal") {
+          const orderRequest = {
+            body: {
+              intent: CheckoutPaymentIntent.Capture,
+              purchaseUnits: [
+                {
+                  amount: {
+                    currencyCode: "USD",
+                    value: await convertNprToUsd(amount),
+                  },
+                  referenceId: productId,
+                  description: productName,
+                },
+              ],
+            }
+          };
+          
+          try {
+            const { body } = await ordersController.createOrder(orderRequest);            
+            const paypalOrder = JSON.parse(body as string);
+            
+            const transaction = new Transaction(transactionData);
+            await transaction.save();
+            
+            return res.send({
+              id: paypalOrder.id,
+              status: paypalOrder.status,
+            });
+            
+          } catch (error: any) {
+            console.error(
+              "Error creating PayPal order:", 
+              error.response?.data || error.message || error
+            );            
+            return res.status(500).json({ 
+              message: "Failed to initiate PayPal order",
+              error: error.message || "Unknown error occurred"
+            });
+          }
+        }
+        else if (paymentGateway === "esewa") {
             const paymentData = {
                 amount, 
                 failure_url: process.env.FAILURE_URL,
@@ -116,7 +155,7 @@ const initiatePayment = async (req: Request<{}, {}, InitiatePaymentBody>, res: R
               },
               responseHandler: (response: AxiosResponse<{ payment_url: string }>) => response.data?.payment_url,
             };
-        } else {
+        }else {
             return res.status(400).json({ error: "Invalid payment gateway." });
         }
 
