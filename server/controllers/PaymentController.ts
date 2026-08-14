@@ -181,9 +181,19 @@ const initiatePayment = async (req: Request<{}, {}, InitiatePaymentBody>, res: R
         });
     }
 };
+interface PaymentStatusBody {
+  product_id: string;
+  pidx?: string;           
+  paypal_order_id?: string;
+  status?: string;         
+}
 
-const paymentStatus = async (req: Request<{}, {}, { product_id: string; pidx: string; status: string }>, res: Response) => {
-    const { product_id, pidx, status } = req.body;
+const paymentStatus = async (
+  req: Request<{}, {}, PaymentStatusBody>, 
+  res: Response
+) => {
+    const { product_id, pidx, paypal_order_id, status } = req.body;
+    
     try {
       const transaction = await Transaction.findOne({ product_id });
       if (!transaction) {
@@ -205,6 +215,57 @@ const paymentStatus = async (req: Request<{}, {}, { product_id: string; pidx: st
       }
   
       let paymentStatusCheck;
+
+      if (payment_gateway === "paypal") {
+        if (!paypal_order_id) {
+          return res.status(400).json({ message: "PayPal order ID is required for verification" });
+        }
+
+        try {
+          const captureResponse = await ordersController.captureOrder({
+            id: paypal_order_id,
+          });
+
+          const captureResult = JSON.parse(captureResponse.body as string);
+
+          if (captureResult.status === "COMPLETED") {
+            await Transaction.updateOne(
+              { product_id },
+              { $set: { status: "COMPLETED", updatedAt: new Date() } }
+            );
+
+            return res.status(200).json({
+              message: "Transaction status updated successfully",
+              status: "COMPLETED",
+            });
+          } else {
+            await Transaction.updateOne(
+              { product_id },
+              { $set: { status: "FAILED", updatedAt: new Date() } }
+            );
+
+            return res.status(200).json({
+              message: "Transaction status updated to FAILED",
+              status: "FAILED",
+            });
+          }
+        } catch (error: any) {
+          console.error(
+            "Error capturing PayPal order:", 
+            error.response?.data || error.message || error
+          );
+          
+          await Transaction.updateOne(
+            { product_id },
+            { $set: { status: "FAILED", updatedAt: new Date() } }
+          );
+
+          return res.status(500).json({
+            message: "Failed to capture PayPal payment",
+            error: error.message || "Unknown error occurred",
+          });
+        }
+      }
   
       if (payment_gateway === "esewa") {
         const paymentData = {
