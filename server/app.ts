@@ -1,12 +1,13 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import bodyParser from 'body-parser';
 import connectDB from './config/db.config.js';
 import paymentRoutes from './routes/PaymentRoutes.js';
 
 
-dotenv.config();
+
 
 const app = express();
 const PORT: number = parseInt(process.env.PORT as string, 10) || 5000;

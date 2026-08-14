@@ -4,6 +4,29 @@ import axios, { AxiosResponse } from "axios";
 import { CheckoutPaymentIntent, Client, Environment, LogLevel, OrdersController} from "@paypal/paypal-server-sdk";
 import type { Request, Response } from "express";
 
+let cachedOrdersController: OrdersController | null = null;
+const getOrdersController = (): OrdersController => {
+  if (cachedOrdersController) {
+    return cachedOrdersController;
+  }
+
+  const paypalClient = new Client({
+    clientCredentialsAuthCredentials: {
+      oAuthClientId: process.env.PAYPAL_CLIENT_ID as string,
+      oAuthClientSecret: process.env.PAYPAL_CLIENT_SECRET as string,
+    },
+    timeout: 0,
+    environment: Environment.Sandbox,
+    logging: {
+      logLevel: LogLevel.Info,
+      logRequest: { logBody: true },
+      logResponse: { logHeaders: true },
+    },
+  });
+
+  cachedOrdersController = new OrdersController(paypalClient);
+  return cachedOrdersController;
+};
 interface InitiatePaymentBody {
     amount: number;
     productId: string;
@@ -21,24 +44,6 @@ interface PaymentConfig {
     responseHandler: (response: AxiosResponse) => string | undefined;
 }
 
-const paypalClient = new Client({
-  clientCredentialsAuthCredentials: {
-    oAuthClientId: process.env.PAYPAL_CLIENT_ID as string,
-    oAuthClientSecret: process.env.PAYPAL_CLIENT_SECRET as string,
-  },
-  timeout: 0,
-  environment: Environment.Sandbox,
-  logging: {
-    logLevel: LogLevel.Info,
-    logRequest:{
-      logBody: true,
-    },
-    logResponse: {
-      logHeaders: true,
-    }
-  }
-});
-const ordersController = new OrdersController(paypalClient);
 
 const initiatePayment = async (req: Request<{}, {}, InitiatePaymentBody>, res: Response) => {
     const {
@@ -89,7 +94,7 @@ const initiatePayment = async (req: Request<{}, {}, InitiatePaymentBody>, res: R
           };
           
           try {
-            const { body } = await ordersController.createOrder(orderRequest);            
+            const { body } = await getOrdersController().createOrder(orderRequest);            
             const paypalOrder = JSON.parse(body as string);
             
             const transaction = new Transaction(transactionData);
@@ -222,7 +227,7 @@ const paymentStatus = async (
         }
 
         try {
-          const captureResponse = await ordersController.captureOrder({
+          const captureResponse = await getOrdersController().captureOrder({
             id: paypal_order_id,
           });
 
