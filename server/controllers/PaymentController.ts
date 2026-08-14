@@ -204,6 +204,13 @@ const paymentStatus = async (
       if (!transaction) {
         return res.status(400).json({ message: "Transaction not found" });
       }
+
+      if (transaction.status !== "PENDING") {
+        return res.status(200).json({
+          message: `Transaction already ${transaction.status}`,
+          status: transaction.status,
+        });
+      }
   
       const { payment_gateway } = transaction;
   
