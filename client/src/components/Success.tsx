@@ -10,38 +10,50 @@ interface DecodedEsewaData {
 }
 
 const Success: React.FC = () => {
-  // 2. Add specific types to state
   const [paymentStatus, setPaymentStatus] = useState<"COMPLETED" | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [verificationError, setVerificationError] = useState<boolean>(false);
-  
+
   const navigate = useNavigate();
   const location = useLocation();
 
   const queryParams = new URLSearchParams(location.search);
 
-  // For eSewa: Decode the data parameter
-  const token = queryParams.get("data");
-  
-  // Cast the decoded return value to our interface
-  const decoded: DecodedEsewaData | null = token ? base64Decode(token) : null;
-  
-  const product_id = decoded?.transaction_uuid || queryParams.get("purchase_order_id");
-  const pidx = queryParams.get("pidx");
-  const isKhalti = pidx !== null;
+  // 1. Extract query parameters across all three gateways
+  const token = queryParams.get("data"); // eSewa encoded token
+  const pidx = queryParams.get("pidx"); // Khalti PIDX
+  const purchaseOrderId = queryParams.get("purchase_order_id"); // Khalti purchase_order_id
+  const transactionIdParam = queryParams.get("transaction_id"); // PayPal / Generic transaction_id
 
-  // 3. Math Fix: URL parameters are strings. TypeScript will throw an error 
-  // if you try to divide a string by 100. We must cast it to a Number first.
+  // 2. Decode eSewa payload if available
+  const decoded: DecodedEsewaData | null = token ? base64Decode(token) : null;
+
+  // 3. Resolve the unified transaction/product ID
+  const product_id =
+    decoded?.transaction_uuid || purchaseOrderId || transactionIdParam;
+
+  // 4. Identify the active gateway
+  const isEsewa = Boolean(token);
+  const isKhalti = Boolean(pidx);
+  const isPayPal = Boolean(transactionIdParam && !token && !pidx);
+
+  const gatewayName = isPayPal
+    ? "PayPal"
+    : isKhalti
+    ? "Khalti"
+    : isEsewa
+    ? "eSewa"
+    : "Online Payment";
+
+  // 5. Parse Amount (Khalti amounts are in paisa -> divide by 100)
   const rawAmountString =
     decoded?.total_amount ||
     queryParams.get("total_amount") ||
     queryParams.get("amount");
-    
+
   const rawAmount = Number(rawAmountString) || 0;
   const total_amount = isKhalti ? rawAmount / 100 : rawAmount;
 
-  // 4. Move the verification function inside the useEffect to prevent 
-  // infinite loops and satisfy React's dependency array rules
   useEffect(() => {
     const verifyPaymentAndUpdateStatus = async () => {
       if (!product_id) {
@@ -50,6 +62,14 @@ const Success: React.FC = () => {
         return;
       }
 
+      // PayPal is already captured in PaymentComponent before redirection
+      if (isPayPal) {
+        setPaymentStatus("COMPLETED");
+        setIsLoading(false);
+        return;
+      }
+
+      // eSewa & Khalti require backend verification on landing
       try {
         const response = await axios.post<{ status: string }>(
           "http://localhost:5000/api/payment-status",
@@ -69,11 +89,11 @@ const Success: React.FC = () => {
             return;
           }
         }
-      } catch (error: any) { // Catch block explicitly typed as any
+      } catch (error: any) {
         console.error("Error confirming payment:", error);
         setIsLoading(false);
         setVerificationError(true);
-        
+
         if (error.response?.status === 400) {
           navigate(`/payment-failure?purchase_order_id=${product_id}`);
         }
@@ -81,7 +101,7 @@ const Success: React.FC = () => {
     };
 
     verifyPaymentAndUpdateStatus();
-  }, [product_id, pidx, navigate]); // Added proper dependencies
+  }, [product_id, pidx, isPayPal, navigate]);
 
   if (isLoading) return <div className="loading-container">Loading...</div>;
 
@@ -131,16 +151,18 @@ const Success: React.FC = () => {
 
       <div className="transaction-details">
         <h3>Transaction Details</h3>
-        <p>
-          <strong>Amount Paid:</strong> NPR {total_amount}
-        </p>
+        {total_amount > 0 && (
+          <p>
+            <strong>Amount Paid:</strong> NPR {total_amount}
+          </p>
+        )}
         <p>
           <strong>Transaction ID:</strong> {product_id}
         </p>
         {paymentStatus === "COMPLETED" && (
           <>
             <p>
-              <strong>Payment Method:</strong> {isKhalti ? "Khalti" : "eSewa"}
+              <strong>Payment Method:</strong> {gatewayName}
             </p>
             <p>
               <strong>Status:</strong> Completed
