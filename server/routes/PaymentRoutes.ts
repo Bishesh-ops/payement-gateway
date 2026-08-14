@@ -5,7 +5,7 @@ import {
     paymentStatus,
 } from '../controllers/PaymentController.js';
 import validate from "../middleware/validateResource.js";
-import { initiatePaymentSchema, paymentStatusSchema } from "../schemas/paymentSchema.js";
+import { initiatePaymentSchema, paymentStatusSchema } from '../schemas/PaymentSchema.js';
 const router = express.Router();
 
 router.post('/initiate-payment', validate(initiatePaymentSchema), initiatePayment);
