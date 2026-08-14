@@ -1,0 +1,126 @@
+/* PaymentComponent.css */
+.payment-wrapper {
+  max-width: 480px;
+  margin: 40px auto;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 36px 28px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #111827; /* Enforce dark text across the component */
+  box-sizing: border-box;
+}
+
+.payment-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.payment-header h2 {
+  margin: 0 0 8px;
+  color: #111827;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.payment-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+/* Input Fields */
+.input-group {
+  margin-bottom: 16px;
+}
+
+.cool-input {
+  width: 100%;
+  padding: 13px 16px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 15px;
+  color: #111827 !important; /* Forces typed text to be dark and readable */
+  background-color: #f9fafb !important;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.cool-input::placeholder {
+  color: #9ca3af;
+}
+
+.cool-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  background-color: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+/* Gateway Selection Cards */
+.gateway-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.gateway-card {
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px 8px;
+  text-align: center;
+  cursor: pointer;
+  background: #ffffff;
+  font-weight: 600;
+  font-size: 14px;
+  color: #374151; /* Explicit card text color */
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.gateway-card:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+.gateway-card.active.esewa {
+  border-color: #61B15A;
+  background-color: #f0fdf4;
+  color: #15803d;
+}
+
+.gateway-card.active.khalti {
+  border-color: #5E338D;
+  background-color: #faf5ff;
+  color: #5E338D;
+}
+
+.gateway-card.active.paypal {
+  border-color: #0070ba;
+  background-color: #f0f9ff;
+  color: #0070ba;
+}
+
+/* Submit Button */
+.pay-btn {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff !important;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.pay-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.paypal-container {
+  margin-top: 20px;
+  min-height: 100px;
+}
