@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # 1. Track Node.js dependencies for the backend server
+  - package-ecosystem: "npm"
+    directory: "/server"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # 2. Track React dependencies for the frontend client
+  - package-ecosystem: "npm"
+    directory: "/client"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # 3. Track GitHub Actions workflows
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+
