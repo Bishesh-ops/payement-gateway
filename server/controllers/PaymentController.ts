@@ -376,5 +376,30 @@ const paymentStatus = async (
       });
     }
 };
+const webHook = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const event = req.body;
 
-export { initiatePayment, paymentStatus };
+    if (event.event_type === "PAYPAL.CAPTURE.COMPLETED") {
+      const paypalOrderId = event.resource.supplementary_data.related_ids.order_id;
+
+      const transaction = await Transaction.findOne({
+        paypal_order_id: paypalOrderId,
+        status: "PENDING"
+      });
+      if (transaction) {
+        transaction.status = "COMPLETED";
+        await transaction.save();
+        console.log(`[WEBHOOK] PayPal transaction ${transaction.product_id} marked as COMPLETED.`);
+      }
+    }
+    return res.status(200).send("Webhook Received");
+  } catch (error) { 
+    console.error("WebHook Error: ", error);
+    return res.status(500).send("Webhook processing failed.");
+  }
+};
+export { initiatePayment, paymentStatus, webHook };
