@@ -11,6 +11,8 @@ export interface ITransaction extends Document {
     amount: number;
     payment_gateway: "esewa" | "khalti" | "paypal";
     status: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED";
+    pidx: string;
+    paypal_order_id: string;
 }
 
 const transactionSchema: Schema<ITransaction> = new Schema({
@@ -23,7 +25,9 @@ const transactionSchema: Schema<ITransaction> = new Schema({
     product_id: { type: String, required: true },
     amount: { type: Number, required: true },
     payment_gateway: { type: String, enum: ["esewa", "khalti", "paypal"], required: true },
-    status: { type: String, enum: ["PENDING", "COMPLETED", "FAILED", "REFUNDED"], default: "PENDING" }
+    status: { type: String, enum: ["PENDING", "COMPLETED", "FAILED", "REFUNDED"], default: "PENDING" },
+    pidx: { type: String },
+    paypal_order_id: { type: String },
 }, {
     timestamps: true
 });

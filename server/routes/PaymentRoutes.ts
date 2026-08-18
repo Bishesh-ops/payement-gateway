@@ -1,9 +1,9 @@
 import express from 'express';
 
 import {
-    initiatePayment,
-    paymentStatus,
-    webHook,
+  initiatePayment,
+  paymentStatus,
+  webHook,
 } from '../controllers/PaymentController.js';
 import validate from "../middleware/validateResource.js";
 import { initiatePaymentSchema, paymentStatusSchema } from '../schemas/PaymentSchema.js';
