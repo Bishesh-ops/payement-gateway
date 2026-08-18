@@ -39,7 +39,7 @@ const PaymentComponent: React.FC = () => {
     setFormData((prev) => ({ ...prev, paymentGateway: gateway }));
   };
 
-  const handleStandardSubmit = async (e: React.FormEvent) => {
+  const handleStandardSubmit = async (e: React.SubmitEvent) => {
     e.preventDefault();
     if (formData.paymentGateway === "paypal") return;
 
@@ -48,10 +48,13 @@ const PaymentComponent: React.FC = () => {
       const productId = generateUniqueId();
       sessionStorage.setItem("current_transaction_id", productId);
 
-      const response = await axios.post("http://localhost:5000/api/initiate-payment", {
-        ...formData,
-        productId,
-      });
+      const response = await axios.post(
+        "http://localhost:5000/api/initiate-payment",
+        {
+          ...formData,
+          productId,
+        },
+      );
 
       if (response.data.url) {
         window.location.href = response.data.url;
@@ -105,7 +108,14 @@ const PaymentComponent: React.FC = () => {
             />
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "12px",
+              marginBottom: "16px",
+            }}
+          >
             <input
               type="tel"
               name="customerPhone"
@@ -139,7 +149,14 @@ const PaymentComponent: React.FC = () => {
             />
           </div>
 
-          <p style={{ margin: "0 0 10px 2px", fontSize: "14px", fontWeight: "600", color: "#374151" }}>
+          <p
+            style={{
+              margin: "0 0 10px 2px",
+              fontSize: "14px",
+              fontWeight: "600",
+              color: "#374151",
+            }}
+          >
             Payment Method
           </p>
 
@@ -167,7 +184,13 @@ const PaymentComponent: React.FC = () => {
           {formData.paymentGateway === "paypal" ? (
             <div className="paypal-container">
               {!clientId ? (
-                <p style={{ color: "#ef4444", fontSize: "13px", textAlign: "center" }}>
+                <p
+                  style={{
+                    color: "#ef4444",
+                    fontSize: "13px",
+                    textAlign: "center",
+                  }}
+                >
                   Missing VITE_PAYPAL_CLIENT_ID in frontend .env
                 </p>
               ) : (
@@ -177,19 +200,27 @@ const PaymentComponent: React.FC = () => {
                     const productId = generateUniqueId();
                     sessionStorage.setItem("current_transaction_id", productId);
 
-                    const response = await axios.post("http://localhost:5000/api/initiate-payment", {
-                      ...formData,
-                      productId,
-                    });
+                    const response = await axios.post(
+                      "http://localhost:5000/api/initiate-payment",
+                      {
+                        ...formData,
+                        productId,
+                      },
+                    );
                     return response.data.id;
                   }}
                   onApprove={async (data) => {
-                    const productId = sessionStorage.getItem("current_transaction_id");
+                    const productId = sessionStorage.getItem(
+                      "current_transaction_id",
+                    );
                     try {
-                      const response = await axios.post("http://localhost:5000/api/payment-status", {
-                        product_id: productId,
-                        paypal_order_id: data.orderID,
-                      });
+                      const response = await axios.post(
+                        "http://localhost:5000/api/payment-status",
+                        {
+                          product_id: productId,
+                          paypal_order_id: data.orderID,
+                        },
+                      );
 
                       if (response.data.status === "COMPLETED") {
                         window.location.href = `/success?transaction_id=${productId}`;

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { base64Decode } from "../utils/helpers";
 
 interface DecodedEsewaData {
@@ -89,12 +89,13 @@ const Success: React.FC = () => {
             return;
           }
         }
-      } catch (error: any) {
-        console.error("Error confirming payment:", error);
+      } catch (error) {
+        const axiosError = error as AxiosError;
+        console.error("Error confirming payment:", axiosError);
         setIsLoading(false);
         setVerificationError(true);
 
-        if (error.response?.status === 400) {
+        if (axiosError.response?.status === 400) {
           navigate(`/payment-failure?purchase_order_id=${product_id}`);
         }
       }
