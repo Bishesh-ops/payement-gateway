@@ -5,6 +5,7 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import connectDB from './config/db.config.js';
 import paymentRoutes from './routes/PaymentRoutes.js';
+import { startTransactionSweeper } from './utils/sweeper.js';
 
 
 
@@ -36,6 +37,7 @@ app.get('/', (req: Request, res: Response) => {
   res.send('eSewa Payment Integration');
 });
 app.use("/api", paymentRoutes);
+startTransactionSweeper();
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
