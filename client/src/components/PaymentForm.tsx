@@ -61,9 +61,18 @@ const PaymentComponent: React.FC = () => {
       } else {
         alert("Payment URL is invalid. Please try again.");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error initiating payment:", error);
-      alert("Payment initiation failed. Please check your connection.");
+
+      if (axios.isAxiosError(error) && error.response?.status === 400) {
+        console.error("ZOD VALIDATION FAILED:", error.response.data);
+        alert(
+          `Validation Error: Check your browser console for exact details!`,
+        );
+      } else {
+        console.error(error);
+        alert("Payment initiation failed. Please check your connection.");
+      }
     } finally {
       setIsSubmitting(false);
     }

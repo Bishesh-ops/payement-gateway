@@ -5,13 +5,11 @@ import {
   paymentStatus,
   webHook,
 } from '../controllers/PaymentController.js';
-import validate from "../middleware/validateResource.js";
-import { initiatePaymentSchema, paymentStatusSchema } from '../schemas/PaymentSchema.js';
 import Transaction from '../models/PaymentModel.js';
 const router = express.Router();
 
-router.post('/initiate-payment', validate(initiatePaymentSchema), initiatePayment);
-router.post('/payment-status', validate(paymentStatusSchema), paymentStatus);
+router.post('/initiate-payment', initiatePayment);
+router.post('/payment-status', paymentStatus);
 router.post('/webhook/paypal', webHook);
 
 if (process.env.NODE_ENV !== "production") {

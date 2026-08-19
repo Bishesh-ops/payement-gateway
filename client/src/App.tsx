@@ -11,6 +11,7 @@ function App() {
         <Route path="/" element={<PaymentComponent />} />
         <Route path="/success" element={<Success />} />
         <Route path="/failure" element={<Failure />} />
+        {/* <Route path="/payment-failure" element={<Failure />} /> */}
       </Routes>
     </BrowserRouter>
   );
