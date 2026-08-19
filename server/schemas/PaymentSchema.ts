@@ -3,8 +3,10 @@ import { z } from "zod";
 export const initiatePaymentSchema = z.object({
   body: z.object({
     amount: z
-      .number()
-      .positive({ error: "Amount must be greater than 0" }),
+      .number({ error: "Valid amount is required" })
+      .positive({ error: "Amount must be greater than 0" })
+      .int({ error: "Ammount cannot contain decimals" })
+      .min(10, { error: "Amount cannot be lower than Rs. 10" }),
     productId: z.string().min(1, { error: "Product ID cannot be empty" }),
     paymentGateway: z.enum(["esewa", "khalti", "paypal"]).refine(
       (val) => ["esewa", "khalti", "paypal"].includes(val),
