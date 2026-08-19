@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { base64Decode } from "../utils/helpers";
@@ -6,31 +6,42 @@ import { base64Decode } from "../utils/helpers";
 const Failure = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const queryParams = new URLSearchParams(location.search);
 
-  const token = queryParams.get("data");
-  const decoded = token ? base64Decode(token) : null;
-  const product_id =
-    decoded?.transaction_uuid ||
-    queryParams.get("purchase_order_id") ||
-    sessionStorage.getItem("current_transaction_id");
+  const transactionId = useMemo(() => {
+    const queryParams = new URLSearchParams(location.search);
+
+    let resolvedId =
+      queryParams.get("purchase_order_id") ||
+      sessionStorage.getItem("current_transaction_id");
+
+    const token = queryParams.get("data");
+    if (token) {
+      try {
+        const decoded = base64Decode(token);
+        if (decoded?.transaction_uuid) {
+          resolvedId = decoded.transaction_uuid;
+        }
+      } catch (error) {
+        // If decoding fails, it logs quietly without crashing the screen!
+        console.error("Failed to decode token on failure page:", error);
+      }
+    }
+
+    return resolvedId;
+  }, [location.search]);
 
   useEffect(() => {
-    if (product_id) {
-      markPaymentAsFailed(product_id);
+    if (transactionId) {
+      axios
+        .post("http://localhost:5000/api/payment-status", {
+          product_id: transactionId,
+          status: "FAILED",
+        })
+        .catch((error) => {
+          console.error("Error updating payment status:", error);
+        });
     }
-  }, [product_id]);
-
-  const markPaymentAsFailed = async (product_id: string) => {
-    try {
-      await axios.post("http://localhost:5000/api/payment-status", {
-        product_id,
-        status: "FAILED",
-      });
-    } catch (error) {
-      console.error("Error updating payment status:", error);
-    }
-  };
+  }, [transactionId]);
 
   return (
     <div className="failure-container">
@@ -51,6 +62,7 @@ const Failure = () => {
           <line x1="9" y1="9" x2="15" y2="15"></line>
         </svg>
       </div>
+
       <h1>Payment Failed!</h1>
       <p className="failure-message">
         There was an issue processing your payment.
@@ -58,7 +70,8 @@ const Failure = () => {
 
       <div className="failure-details">
         <p>
-          <strong>Transaction ID:</strong> {product_id || "Not available"}
+          {/* Display the safely resolved ID */}
+          <strong>Transaction ID:</strong> {transactionId || "Not available"}
         </p>
         <p>
           If the amount was deducted from your account, it will be refunded
