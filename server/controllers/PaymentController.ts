@@ -1,4 +1,4 @@
-import Transaction from "../models/PaymentModel.js";
+import type { Transaction } from "../models/PaymentModel.js";
 import { convertNprToUsd, generateHmacSha256Hash } from "../utils/helper.js";
 import axios, { AxiosResponse } from "axios";
 import { CheckoutPaymentIntent, Client, Environment, LogLevel, OrdersController } from "@paypal/paypal-server-sdk";

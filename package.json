@@ -1,8 +1,16 @@
 {
   "dependencies": {
-    "node-cron": "^4.6.0"
+    "drizzle-orm": "^0.45.2",
+    "node-cron": "^4.6.0",
+    "postgres": "^3.4.9"
   },
   "devDependencies": {
-    "@types/node-cron": "^3.0.11"
+    "@types/node-cron": "^3.0.11",
+    "drizzle-kit": "^0.31.10"
+  },
+  "allowScripts": {
+    "esbuild@0.18.20": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true
   }
 }
