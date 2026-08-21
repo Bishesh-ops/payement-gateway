@@ -4,13 +4,9 @@ export const initiatePaymentSchema = z.object({
   amount: z
     .number({ error: "Valid amount is required" })
     .positive({ error: "Amount must be greater than 0" })
-    .int({ error: "Ammount cannot contain decimals" })
     .min(10, { error: "Amount cannot be lower than Rs. 10" }),
   productId: z.string().min(1, { error: "Product ID cannot be empty" }),
-  paymentGateway: z.enum(["esewa", "khalti", "paypal"]).refine(
-    (val) => ["esewa", "khalti", "paypal"].includes(val),
-    { error: "Invalid payment gateway. Must be esewa, khalti, or paypal" }
-  ),
+  paymentGateway: z.string(),
   customerName: z.string().min(2, { error: "Name must be at least 2 characters" }),
   customerEmail: z.email({ error: "Invalid email address" }),
   customerPhone: z.string().min(7, { error: "Phone number is too short" }),
@@ -22,6 +18,6 @@ export const paymentStatusSchema = z.object({
   product_id: z.string(),
   pidx: z.string().optional(),
   paypal_order_id: z.string().optional(),
-  status: z.string().optional(),
+  status: z.string(),
 });
 export type PaymentStatusBody = z.infer<typeof paymentStatusSchema>;
