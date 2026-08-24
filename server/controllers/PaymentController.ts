@@ -1,12 +1,25 @@
-import type { Transaction } from "../models/PaymentModel.js";
-import { convertNprToUsd, generateHmacSha256Hash } from "../utils/helper.js";
-import axios, { AxiosResponse } from "axios";
-import { CheckoutPaymentIntent, Client, Environment, LogLevel, OrdersController } from "@paypal/paypal-server-sdk";
 import type { Request, Response } from "express";
-import { initiatePaymentSchema, paymentStatusSchema } from "../schemas/PaymentSchema.js";
-import type { InitiatePaymentBody, PaymentStatusBody } from "../schemas/PaymentSchema.js";
+import axios, { AxiosResponse } from "axios";
 import { z } from "zod";
+import { eq, and } from "drizzle-orm";
+import {
+  CheckoutPaymentIntent,
+  Client,
+  Environment,
+  LogLevel,
+  OrdersController,
+} from "@paypal/paypal-server-sdk";
 
+import { db } from "../config/db.config.js"; 
+import { transactions } from "../models/PaymentModel.js";
+
+import { convertNprToUsd, generateHmacSha256Hash } from "../utils/helper.js";
+import {
+  initiatePaymentSchema,
+  paymentStatusSchema,
+  type InitiatePaymentBody,
+  type PaymentStatusBody,
+} from "../schemas/PaymentSchema.js";
 
 let cachedOrdersController: OrdersController | null = null;
 const getOrdersController = (): OrdersController => {
@@ -31,15 +44,6 @@ const getOrdersController = (): OrdersController => {
   cachedOrdersController = new OrdersController(paypalClient);
   return cachedOrdersController;
 };
-// interface InitiatePaymentBody {
-//   amount: number;
-//   productId: string;
-//   paymentGateway: "esewa" | "khalti" | "paypal";
-//   customerName: string;
-//   customerEmail: string;
-//   customerPhone: string;
-//   productName: string;
-// }
 
 interface PaymentConfig {
   url: string;
@@ -48,15 +52,18 @@ interface PaymentConfig {
   responseHandler: (response: AxiosResponse) => string | undefined;
 }
 
-
-const initiatePayment = async (req: Request<{}, {}, InitiatePaymentBody>, res: Response) => {
+export const initiatePayment = async (
+  req: Request<{}, {}, InitiatePaymentBody>,
+  res: Response
+) => {
   const validation = initiatePaymentSchema.safeParse(req.body);
   if (!validation.success) {
     return res.status(400).json({
       error: "Validation failed",
-      details: z.treeifyError(validation.error),
+      details: validation.error.format(),
     });
   }
+
   const {
     amount,
     productId,
@@ -68,21 +75,8 @@ const initiatePayment = async (req: Request<{}, {}, InitiatePaymentBody>, res: R
   } = validation.data;
 
   try {
-    const customerDetails = {
-      name: customerName,
-      email: customerEmail,
-      phone: customerPhone,
-    };
-
-    const transactionData = {
-      customerDetails,
-      product_name: productName,
-      product_id: productId,
-      amount,
-      payment_gateway: paymentGateway,
-    };
-
     let paymentConfig: PaymentConfig;
+
     if (paymentGateway === "paypal") {
       const orderRequest = {
         body: {
@@ -97,32 +91,38 @@ const initiatePayment = async (req: Request<{}, {}, InitiatePaymentBody>, res: R
               description: productName,
             },
           ],
-        }
+        },
       };
 
       try {
         const { body } = await getOrdersController().createOrder(orderRequest);
         const paypalOrder = JSON.parse(body as string);
 
-        const transaction = new Transaction(transactionData);
-        await transaction.save();
+        await db.insert(transactions).values({
+          productId,
+          productName,
+          amount: amount.toString(),
+          paymentGateway: "paypal",
+          status: "PENDING",
+          customerName,
+          customerEmail,
+          customerPhone,
+          paypalOrderId: paypalOrder.id,
+        });
 
-        return res.send({
+        return res.status(200).json({
           id: paypalOrder.id,
           status: paypalOrder.status,
         });
-
       } catch (error: any) {
-        console.error(
-          "Error creating PayPal order:",
-          error.response?.data || error.message || error
-        );
+        console.error("Error creating PayPal order:", error.response?.data || error.message || error);
         return res.status(500).json({
           message: "Failed to initiate PayPal order",
-          error: error.message || "Unknown error occurred"
+          error: error.message || "Unknown error occurred",
         });
       }
     }
+
     else if (paymentGateway === "esewa") {
       const paymentData = {
         amount,
@@ -137,8 +137,8 @@ const initiatePayment = async (req: Request<{}, {}, InitiatePaymentBody>, res: R
         transaction_uuid: productId,
       };
 
-      const data = `total_amount=${paymentData.total_amount},transaction_uuid=${paymentData.transaction_uuid},product_code=${paymentData.product_code}`;
-      const signature = generateHmacSha256Hash(data, process.env.ESEWA_SECRET as string);
+      const dataString = `total_amount=${paymentData.total_amount},transaction_uuid=${paymentData.transaction_uuid},product_code=${paymentData.product_code}`;
+      const signature = generateHmacSha256Hash(dataString, process.env.ESEWA_SECRET as string);
 
       paymentConfig = {
         url: process.env.ESEWA_PAYMENT_URL as string,
@@ -146,12 +146,14 @@ const initiatePayment = async (req: Request<{}, {}, InitiatePaymentBody>, res: R
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         responseHandler: (response: AxiosResponse) => response.request?.res?.responseUrl,
       };
-    } else if (paymentGateway === "khalti") {
+    }
+
+    else if (paymentGateway === "khalti") {
       paymentConfig = {
         url: process.env.KHALTI_PAYMENT_URL as string,
         data: {
-          amount: amount * 100,
-          mobile: customerDetails?.phone,
+          amount: amount * 100, // Khalti requires amount in paisa
+          mobile: customerPhone,
           product_identity: productId,
           product_name: productName,
           return_url: process.env.SUCCESS_URL,
@@ -165,59 +167,66 @@ const initiatePayment = async (req: Request<{}, {}, InitiatePaymentBody>, res: R
           Authorization: `Key ${process.env.KHALTI_SECRET_KEY}`,
           "Content-Type": "application/json",
         },
-        responseHandler: (response: AxiosResponse<{ payment_url: string }>) => response.data?.payment_url,
+        responseHandler: (response: AxiosResponse<{ payment_url: string; pidx?: string }>) => response.data?.payment_url,
       };
     } else {
       return res.status(400).json({ error: "Invalid payment gateway." });
     }
 
-    const payment = await axios.post(paymentConfig.url, paymentConfig.data, { headers: paymentConfig.headers });
+    const payment = await axios.post(paymentConfig.url, paymentConfig.data, {
+      headers: paymentConfig.headers,
+    });
     const paymentUrl = paymentConfig.responseHandler(payment);
 
     if (!paymentUrl) {
       throw new Error("Payment URL not found in the response.");
     }
 
-    const transaction = new Transaction(transactionData);
-    await transaction.save();
+    await db.insert(transactions).values({
+      productId,
+      productName,
+      amount: amount.toString(),
+      paymentGateway: paymentGateway as "esewa" | "khalti" | "paypal",
+      status: "PENDING",
+      customerName,
+      customerEmail,
+      customerPhone,
+      pidx: payment.data?.pidx || null,
+    });
 
-    return res.send({ url: paymentUrl });
+    return res.status(200).json({ url: paymentUrl });
   } catch (error: any) {
-    console.error(
-      "Error during payment initiation:",
-      error.response?.data || error.message
-    );
-    res.status(500).send({
+    console.error("Error during payment initiation:", error.response?.data || error.message);
+    return res.status(500).json({
       message: "Payment initiation failed",
       error: error.response?.data || error.message,
     });
   }
 };
-// interface PaymentStatusBody {
-//   product_id: string;
-//   pidx?: string;
-//   paypal_order_id?: string;
-//   status?: string;
-// }
 
-const paymentStatus = async (
+export const paymentStatus = async (
   req: Request<{}, {}, PaymentStatusBody>,
   res: Response
 ) => {
   const validation = paymentStatusSchema.safeParse(req.body);
-
   if (!validation.success) {
     return res.status(400).json({
       error: "Validation failed",
-      details: z.treeifyError(validation.error),
+      details: validation.error.format(),
     });
   }
+
   const { product_id, pidx, paypal_order_id, status } = validation.data;
 
   try {
-    const transaction = await Transaction.findOne({ product_id });
+    // Select record from PostgreSQL
+    const [transaction] = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.productId, product_id));
+
     if (!transaction) {
-      return res.status(400).json({ message: "Transaction not found" });
+      return res.status(404).json({ message: "Transaction not found" });
     }
 
     if (transaction.status !== "PENDING") {
@@ -227,13 +236,13 @@ const paymentStatus = async (
       });
     }
 
-    const { payment_gateway } = transaction;
+    const { paymentGateway } = transaction;
 
     if (status === "FAILED") {
-      await Transaction.updateOne(
-        { product_id },
-        { $set: { status: "FAILED", updatedAt: new Date() } }
-      );
+      await db
+        .update(transactions)
+        .set({ status: "FAILED", updatedAt: new Date() })
+        .where(eq(transactions.productId, product_id));
 
       return res.status(200).json({
         message: "Transaction status updated to FAILED",
@@ -241,51 +250,31 @@ const paymentStatus = async (
       });
     }
 
-    let paymentStatusCheck;
-
-    if (payment_gateway === "paypal") {
+    if (paymentGateway === "paypal") {
       if (!paypal_order_id) {
         return res.status(400).json({ message: "PayPal order ID is required for verification" });
       }
 
       try {
-        const captureResponse = await getOrdersController().captureOrder({
-          id: paypal_order_id,
-        });
-
+        const captureResponse = await getOrdersController().captureOrder({ id: paypal_order_id });
         const captureResult = JSON.parse(captureResponse.body as string);
 
-        if (captureResult.status === "COMPLETED") {
-          await Transaction.updateOne(
-            { product_id },
-            { $set: { status: "COMPLETED", updatedAt: new Date() } }
-          );
+        const newStatus = captureResult.status === "COMPLETED" ? "COMPLETED" : "FAILED";
 
-          return res.status(200).json({
-            message: "Transaction status updated successfully",
-            status: "COMPLETED",
-          });
-        } else {
-          await Transaction.updateOne(
-            { product_id },
-            { $set: { status: "FAILED", updatedAt: new Date() } }
-          );
+        await db
+          .update(transactions)
+          .set({ status: newStatus, updatedAt: new Date() })
+          .where(eq(transactions.productId, product_id));
 
-          return res.status(200).json({
-            message: "Transaction status updated to FAILED",
-            status: "FAILED",
-          });
-        }
+        return res.status(200).json({
+          message: `Transaction status updated to ${newStatus}`,
+          status: newStatus,
+        });
       } catch (error: any) {
-        console.error(
-          "Error capturing PayPal order:",
-          error.response?.data || error.message || error
-        );
-
-        await Transaction.updateOne(
-          { product_id },
-          { $set: { status: "FAILED", updatedAt: new Date() } }
-        );
+        await db
+          .update(transactions)
+          .set({ status: "FAILED", updatedAt: new Date() })
+          .where(eq(transactions.productId, product_id));
 
         return res.status(500).json({
           message: "Failed to capture PayPal payment",
@@ -294,46 +283,34 @@ const paymentStatus = async (
       }
     }
 
-    if (payment_gateway === "esewa") {
+    if (paymentGateway === "esewa") {
       const paymentData = {
         product_code: process.env.ESEWA_MERCHANT_ID,
         total_amount: transaction.amount,
-        transaction_uuid: transaction.product_id,
+        transaction_uuid: transaction.productId,
       };
 
       const response = await axios.get(
         process.env.ESEWA_PAYMENT_STATUS_CHECK_URL as string,
-        {
-          params: paymentData,
-        }
+        { params: paymentData }
       );
 
-      paymentStatusCheck = response.data;
+      const paymentStatusCheck = response.data;
+      const newStatus = paymentStatusCheck.status === "COMPLETE" ? "COMPLETED" : "FAILED";
 
-      if (paymentStatusCheck.status === "COMPLETE") {
-        await Transaction.updateOne(
-          { product_id },
-          { $set: { status: "COMPLETED", updatedAt: new Date() } }
-        );
+      await db
+        .update(transactions)
+        .set({ status: newStatus, updatedAt: new Date() })
+        .where(eq(transactions.productId, product_id));
 
-        return res.status(200).json({
-          message: "Transaction status updated successfully",
-          status: "COMPLETED",
-        });
-      } else {
-        await Transaction.updateOne(
-          { product_id },
-          { $set: { status: "FAILED", updatedAt: new Date() } }
-        );
-
-        return res.status(200).json({
-          message: "Transaction status updated to FAILED",
-          status: "FAILED",
-        });
-      }
+      return res.status(200).json({
+        message: `Transaction status updated to ${newStatus}`,
+        status: newStatus,
+      });
     }
 
-    if (payment_gateway === "khalti") {
+    if (paymentGateway === "khalti") {
+      let paymentStatusCheck;
       try {
         const response = await axios.post(
           process.env.KHALTI_VERIFICATION_URL as string,
@@ -345,70 +322,62 @@ const paymentStatus = async (
             },
           }
         );
-
         paymentStatusCheck = response.data;
       } catch (error: any) {
         if (error.response?.status === 400) {
           paymentStatusCheck = error.response.data;
         } else {
-          console.error(
-            "Error verifying Khalti payment:",
-            error.response?.data || error.message
-          );
           throw error;
         }
       }
 
-      if (paymentStatusCheck.status === "Completed") {
-        await Transaction.updateOne(
-          { product_id },
-          { $set: { status: "COMPLETED", updatedAt: new Date() } }
-        );
+      const newStatus = paymentStatusCheck.status === "Completed" ? "COMPLETED" : "FAILED";
 
-        return res.status(200).json({
-          message: "Transaction status updated successfully",
-          status: "COMPLETED",
-        });
-      } else {
-        await Transaction.updateOne(
-          { product_id },
-          { $set: { status: "FAILED", updatedAt: new Date() } }
-        );
+      await db
+        .update(transactions)
+        .set({ status: newStatus, updatedAt: new Date() })
+        .where(eq(transactions.productId, product_id));
 
-        return res.status(200).json({
-          message: "Transaction status updated to FAILED",
-          status: "FAILED",
-        });
-      }
+      return res.status(200).json({
+        message: `Transaction status updated to ${newStatus}`,
+        status: newStatus,
+      });
     }
 
     return res.status(400).json({ message: "Invalid payment gateway" });
   } catch (error: any) {
     console.error("Error during payment status check:", error);
-    res.status(500).send({
+    return res.status(500).json({
       message: "Payment status check failed",
       error: error.response?.data || error.message,
     });
   }
 };
-const webHook = async (
-  req: Request,
-  res: Response
-) => {
+
+export const webHook = async (req: Request, res: Response) => {
   try {
     const event = req.body;
 
     if (event.event_type === "PAYPAL.CAPTURE.COMPLETED") {
       const paypalOrderId = event.resource.supplementary_data.related_ids.order_id;
 
-      const transaction = await Transaction.findOne({
-        paypal_order_id: paypalOrderId,
-        status: "PENDING"
-      });
+      const [transaction] = await db
+        .select()
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.paypalOrderId, paypalOrderId),
+            eq(transactions.status, "PENDING")
+          )
+        );
+
       if (transaction) {
-        transaction.status = "COMPLETED";
-        await transaction.save();
-        console.log(`[WEBHOOK] PayPal transaction ${transaction.product_id} marked as COMPLETED.`);
+        await db
+          .update(transactions)
+          .set({ status: "COMPLETED", updatedAt: new Date() })
+          .where(eq(transactions.id, transaction.id));
+
+        console.log(`[WEBHOOK] PayPal transaction ${transaction.productId} marked as COMPLETED.`);
       }
     }
     return res.status(200).send("Webhook Received");
@@ -417,4 +386,3 @@ const webHook = async (
     return res.status(500).send("Webhook processing failed.");
   }
 };
-export { initiatePayment, paymentStatus, webHook };
