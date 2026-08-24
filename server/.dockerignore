@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+.npm/
+
+# Build outputs
+dist/
+build/
+
+# Secrets (Docker Compose injects env_file, don't hardcode it into the image)
+.env
+.env.*
+
+# Logs and system files
+*.log
+.DS_Store
