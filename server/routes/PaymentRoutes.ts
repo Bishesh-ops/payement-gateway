@@ -1,11 +1,14 @@
 import express from 'express';
-
 import {
   initiatePayment,
   paymentStatus,
   webHook,
 } from '../controllers/PaymentController.js';
-import Transaction from '../models/PaymentModel.js';
+
+// 1. Import your Drizzle DB and schema
+import { db } from '../config/db.config.js';
+import { transactions } from '../models/PaymentModel.js';
+
 const router = express.Router();
 
 router.post('/initiate-payment', initiatePayment);
@@ -22,7 +25,8 @@ if (process.env.NODE_ENV !== "production") {
     }
 
     try {
-      const allTransactions = await Transaction.find({});
+      const allTransactions = await db.select().from(transactions);
+      
       return res.status(200).json({
         count: allTransactions.length,
         transactions: allTransactions,
