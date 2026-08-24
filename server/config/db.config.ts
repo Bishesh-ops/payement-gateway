@@ -1,12 +1,22 @@
-import {connect} from "mongoose";
-const connectDB = async(): Promise<void>=>{
-    try{
-        await connect(process.env.MONGO_URI as string);
-        console.log("MongoDB connected successfully");
-    } catch (error) {
-        console.error("Error connecting to MongoDB:", error);
-        process.exit(1); 
-    }
-};
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
+import * as schema from "../models/PaymentModel.js";
+import "dotenv/config";
 
-export default connectDB;
+const { Pool } = pg;
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+export const db = drizzle(pool, { schema });
+
+export const checkDbConnection = async () => {
+  try {
+    await pool.query("SELECT 1");
+    console.log("PostgreSQL connected successfully via Drizzle");
+  } catch (error) {
+    console.error("Database connection failed:", error);
+    process.exit(1);
+  }
+};

@@ -1,24 +1,18 @@
-import dotenv from 'dotenv';
-dotenv.config();
-import express, {  Request, Response, RequestHandler } from 'express';
-import cors, { CorsOptions } from 'cors';
-import bodyParser from 'body-parser';
-import connectDB from './config/db.config.js';
-import paymentRoutes from './routes/PaymentRoutes.js';
-import { startTransactionSweeper } from './utils/sweeper.js';
-
-
-
+// app.ts
+import "dotenv/config";
+import express, { Request, RequestHandler, Response } from "express";
+import cors, { CorsOptions } from "cors";
+import paymentRoutes from "./routes/PaymentRoutes.js";
+import { startTransactionSweeper } from "./utils/sweeper.js";
+import { checkDbConnection } from "./config/db.config.js"; 
 
 const app = express();
 const PORT: number = parseInt(process.env.PORT as string, 10) || 5000;
 
-connectDB();
-
 const allowedOrigins = ["https://localhost:3000", "http://localhost:5173"];
 const corsOptions: CorsOptions = {
-  origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error("Not allowed by CORS"));
@@ -30,15 +24,22 @@ const corsOptions: CorsOptions = {
 };
 
 app.use(cors(corsOptions) as unknown as RequestHandler);
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json()); 
+app.use(express.urlencoded({ extended: true })); 
 
-app.get('/', (req: Request, res: Response) => {
-  res.send('eSewa Payment Integration');
+app.get("/", (req: Request, res: Response) => {
+  res.send("Payment Gateway API is running");
 });
 app.use("/api", paymentRoutes);
+
 startTransactionSweeper();
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+const startServer = async () => {
+  await checkDbConnection();
+  
+  app.listen(PORT, () => {
+    console.log(`🚀 Server is running on port ${PORT}`);
+  });
+};
+
+startServer();
