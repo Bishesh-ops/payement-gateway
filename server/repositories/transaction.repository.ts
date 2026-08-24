@@ -1,8 +1,7 @@
 import { eq, and, lt } from "drizzle-orm";
 import { db } from "../config/db.config.js";
 import { transactions } from "../models/PaymentModel.js";
-
-export type NewTransaction = typeof transactions.$inferInsert;
+import type { NewTransaction } from "../models/PaymentModel.js";
 
 export const createTransaction = async (data: NewTransaction) => {
   const [newTx] = await db.insert(transactions).values(data).returning();
