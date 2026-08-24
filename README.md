@@ -1,10 +1,10 @@
 # Payment Gateway Aggregator
 
-![Demo](docs/demo.gif)
+![67](https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExajRxcjR5ZTJvaG5jOWpncTB1NmIwc2hpb2lhcTMxZzU3dDhzZWRiMyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/zIatAEDb9NwwAd3cYE/giphy.gif)
 
 A unified payment gateway aggregator for Nepali e-commerce platforms, supporting **eSewa**, **Khalti**, <s>**NPS**</s>, <s>**ConnectIPS**</s>, <s>**MyPay**</s> and **Paypal** through a single integration.
 
-<h3><I>~~Crossedout means Yet to be implemented :)~~~</I></h3>
+<h3><I><s>Crossedout means Yet to be implemented :)</s></I></h3>
 
 ## Tech Stack
 
@@ -13,34 +13,33 @@ A unified payment gateway aggregator for Nepali e-commerce platforms, supporting
 - **Database:** PostgreSQL + Drizzle ORM
 
 ## Project Structure
-payement-gateway/
-├── .github/
-├── client/
-│ ├── public/
-│ ├── src/
-│ ├── .env
-│ ├── eslint.config.js
-│ ├── index.html
-│ ├── vite.config.ts
-│ └── tsconfig*.json
-├── server/
-│ ├── config/
-│ ├── controllers/
-│ ├── models/
-│ ├── routes/
-│ ├── schemas/
-│ ├── utils/
-│ ├── .env
-│ ├── app.ts
-│ ├── index.ts
-│ ├── Dockerfile
-│ └── drizzle.config.ts
-├── flow diagrams/
-├── docker-compose.yml
-├── LICENSE
-└── package.json
-
-
+payement-gateway/<br>
+├── .github/ <br>
+├── client/ <br>
+│ ├── public/ <br>
+│ ├── src/ <br>
+│ ├── .env <br>
+│ ├── eslint.config.js <br>
+│ ├── index.html <br>
+│ ├── vite.config.ts <br>
+│ └── tsconfig*.json <br>
+├── server/ <br>
+│ ├── config/ <br>
+│ ├── controllers/ <br>
+│ ├── models/ <br>
+│ ├── routes/ <br>
+│ ├── schemas/ <br>
+│ ├── utils/ <br>
+│ ├── .env <br>
+│ ├── app.ts <br>
+│ ├── index.ts <br>
+│ ├── Dockerfile <br>
+│ └── drizzle.config.ts <br>
+├── flow diagrams/ <br>
+├── docker-compose.yml <br>
+├── LICENSE <br>
+└── package.json <br>
+<br>
 
 ## Supported Providers
 
@@ -88,10 +87,28 @@ The backend (API + PostgreSQL) is fully containerized.
 
 ```env
 PORT=5000
-JWT_SECRET=
-ESEWA_API_KEY=
-KHALTI_API_KEY=
-DOCKER_PASSWORD=
+NODE_ENV=development
+
+DATABASE_URL=postgresql://postgres:${DOCKER_PASSWORD}@localhost:5432/payment_gateway_db
+
+SUCCESS_URL=http://localhost:5173/payment/success
+FAILURE_URL=http://localhost:5173/payment/failure
+
+ESEWA_MERCHANT_ID=EPAYTEST
+ESEWA_SECRET=8gBm/:&EnhH.1/q
+ESEWA_PAYMENT_URL=https://rc-epay.esewa.com.np/api/epay/main/v2/form
+ESEWA_PAYMENT_STATUS_CHECK_URL=https://rc-epay.esewa.com.np/api/epay/transaction/status/
+
+
+KHALTI_PUBLIC_KEY=your_public_key
+KHALTI_SECRET_KEY=your_secret_key
+KHALTI_PAYMENT_URL=https://a.khalti.com/api/v2/epayment/initiate/
+KHALTI_VERIFICATION_URL=https://a.khalti.com/api/v2/epayment/lookup/
+
+PAYPAL_CLIENT_ID=your_paypal_client_id
+PAYPAL_CLIENT_SECRET=your_paypal_client_secret
+
+DOCKER_PASSWORD=your_password
 ```
 
 2. From the project root, run:
