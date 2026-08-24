@@ -2,7 +2,7 @@ import { defineConfig } from "drizzle-kit";
 import "dotenv/config";
 
 export default defineConfig({
-  schema: "./src/models/PaymentModel.ts",
+  schema: "./models/PaymentModel.ts",
   
   out: "./drizzle",
   
