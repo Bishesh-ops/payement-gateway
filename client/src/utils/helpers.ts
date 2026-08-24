@@ -2,7 +2,7 @@ export function generateUniqueId() {
     return `id-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
   
-  export function base64Decode(base64: string | null): any | null {
+  export function base64Decode(base64: string | null): string | null {
     if (!base64) {
       console.error("Base64 string is null or undefined");
       return null;
