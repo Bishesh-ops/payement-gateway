@@ -40,10 +40,10 @@ const Success: React.FC = () => {
   const gatewayName = isPayPal
     ? "PayPal"
     : isKhalti
-    ? "Khalti"
-    : isEsewa
-    ? "eSewa"
-    : "Online Payment";
+      ? "Khalti"
+      : isEsewa
+        ? "eSewa"
+        : "Online Payment";
 
   // 5. Parse Amount (Khalti amounts are in paisa -> divide by 100)
   const rawAmountString =
@@ -76,7 +76,7 @@ const Success: React.FC = () => {
           {
             product_id,
             pidx,
-          }
+          },
         );
 
         if (response.status === 200) {
@@ -119,9 +119,7 @@ const Success: React.FC = () => {
           If the amount was deducted from your account, please contact our
           support team.
         </p>
-        <p>
-          Reference ID: {product_id || pidx || "Unknown"}
-        </p>
+        <p>Reference ID: {product_id || pidx || "Unknown"}</p>
         <button onClick={() => navigate("/")} className="go-home-button">
           Go to Homepage
         </button>
