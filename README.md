@@ -1,6 +1,6 @@
 # Payment Gateway Aggregator
 
-![67](https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExajRxcjR5ZTJvaG5jOWpncTB1NmIwc2hpb2lhcTMxZzU3dDhzZWRiMyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/zIatAEDb9NwwAd3cYE/giphy.gif)
+![67](https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExdXVpaXc4Yzk2MW40Yml2dHgyOWhtdWNoMWwzbmhoMmxtdDE1MGNrYiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/dmmBhPUnCSF9ibuTEo/giphy.gif)
 
 A unified payment gateway aggregator for Nepali e-commerce platforms, supporting **eSewa**, **Khalti**, <s>**NPS**</s>, <s>**ConnectIPS**</s>, <s>**MyPay**</s> and **Paypal** through a single integration.
 
