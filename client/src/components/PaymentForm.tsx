@@ -222,12 +222,19 @@ const PaymentComponent: React.FC = () => {
                     const productId = sessionStorage.getItem(
                       "current_transaction_id",
                     );
+
+                    if (!productId) {
+                      alert("Transaction ID lost. Please try again.");
+                      return;
+                    }
+
                     try {
                       const response = await axios.post(
                         "http://localhost:5000/api/payment-status",
                         {
                           product_id: productId,
                           paypal_order_id: data.orderID,
+                          status: "PENDING", // <--- ADD THIS LINE!
                         },
                       );
 
@@ -236,8 +243,15 @@ const PaymentComponent: React.FC = () => {
                       } else {
                         alert("Payment verification failed.");
                       }
-                    } catch (err) {
-                      console.error(err);
+                    } catch (err: unknown) {
+                      console.error(
+                        "Payment Capture Error:",
+                        axios.isAxiosError(err)
+                          ? err.response?.data || err.message
+                          : err instanceof Error
+                            ? err.message
+                            : err,
+                      );
                       alert("Error capturing payment.");
                     }
                   }}
