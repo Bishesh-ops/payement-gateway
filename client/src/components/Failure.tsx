@@ -2,6 +2,11 @@ import { useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { base64Decode } from "../utils/helpers";
+interface DecodedEsewaData {
+  transaction_uuid?: string;
+  total_amount?: string;
+  status?: string;
+}
 
 const Failure = () => {
   const navigate = useNavigate();
@@ -17,7 +22,7 @@ const Failure = () => {
     const token = queryParams.get("data");
     if (token) {
       try {
-        const decoded = base64Decode(token);
+        const decoded = base64Decode<DecodedEsewaData>(token);
         if (decoded?.transaction_uuid) {
           resolvedId = decoded.transaction_uuid;
         }
