@@ -1,8 +1,12 @@
 import cron from "node-cron";
-import axios from "axios";
-import { and, eq, lt } from "drizzle-orm";
-import { db } from "../config/db.config.js"; 
-import { transactions } from "../models/PaymentModel.js";
+import {
+  getAbandonedPendingTransactions,
+  updateTransactionStatus,
+} from "../repositories/transaction.repository.js";
+import {
+  verifyKhaltiPayment,
+  checkEsewaStatus,
+} from "../providers/payment.providers.js";
 
 export const startTransactionSweeper = () => {
   cron.schedule("*/15 * * * *", async () => {
@@ -10,16 +14,8 @@ export const startTransactionSweeper = () => {
 
     try {
       const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-      
-      const pendingTransactions = await db
-        .select()
-        .from(transactions)
-        .where(
-          and(
-            eq(transactions.status, "PENDING"),
-            lt(transactions.createdAt, tenMinutesAgo)
-          )
-        );
+
+      const pendingTransactions = await getAbandonedPendingTransactions(tenMinutesAgo);
 
       if (pendingTransactions.length === 0) {
         return;
@@ -37,51 +33,32 @@ export const startTransactionSweeper = () => {
               continue;
             }
 
-            const response = await axios.post(
-              process.env.KHALTI_VERIFICATION_URL as string,
-              { pidx },
-              { headers: { Authorization: `Key ${process.env.KHALTI_SECRET_KEY}` } }
-            );
-
-            const khaltiStatus = response.data.status;
+            const checkResult = await verifyKhaltiPayment(pidx);
+            const khaltiStatus = checkResult.status;
 
             if (khaltiStatus === "Completed") {
-              await db
-                .update(transactions)
-                .set({ status: "COMPLETED", updatedAt: new Date() })
-                .where(eq(transactions.id, tx.id));
+              await updateTransactionStatus(tx.id, "COMPLETED");
               console.log(`[SWEEPER] Khalti tx ${tx.productId} recovered and marked COMPLETED.`);
             } else if (["Expired", "User canceled", "Failed"].includes(khaltiStatus)) {
-              await db
-                .update(transactions)
-                .set({ status: "FAILED", updatedAt: new Date() })
-                .where(eq(transactions.id, tx.id));
+              await updateTransactionStatus(tx.id, "FAILED");
               console.log(`[SWEEPER] Khalti tx ${tx.productId} expired/failed. Marked FAILED.`);
             }
           }
 
           if (tx.paymentGateway === "esewa") {
             if (!tx.amount || !tx.productId) {
-               console.log(`[SWEEPER] Skipping eSewa tx ${tx.id} - missing amount or productId.`);
-               continue;
+              console.log(`[SWEEPER] Skipping eSewa tx ${tx.id} - missing amount or productId.`);
+              continue;
             }
 
-            const url = `${process.env.ESEWA_PAYMENT_STATUS_CHECK_URL}?product_code=${process.env.ESEWA_MERCHANT_ID}&total_amount=${tx.amount}&transaction_uuid=${tx.productId}`;
-
-            const response = await axios.get(url);
-            const esewaStatus = response.data.status;
+            const checkResult = await checkEsewaStatus(tx.amount, tx.productId);
+            const esewaStatus = checkResult.status;
 
             if (esewaStatus === "COMPLETE") {
-              await db
-                .update(transactions)
-                .set({ status: "COMPLETED", updatedAt: new Date() })
-                .where(eq(transactions.id, tx.id));
+              await updateTransactionStatus(tx.id, "COMPLETED");
               console.log(`[SWEEPER] eSewa tx ${tx.productId} recovered and marked COMPLETED.`);
             } else if (["FAILED", "CANCELED", "NOT_FOUND"].includes(esewaStatus)) {
-              await db
-                .update(transactions)
-                .set({ status: "FAILED", updatedAt: new Date() })
-                .where(eq(transactions.id, tx.id));
+              await updateTransactionStatus(tx.id, "FAILED");
               console.log(`[SWEEPER] eSewa tx ${tx.productId} failed or not found. Marked FAILED.`);
             }
           }
