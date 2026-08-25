@@ -42,7 +42,7 @@ export const getAbandonedPendingTransactions = async (olderThan: Date): Promise<
 
 export const updateTransactionStatus = async (
   id: string,
-  status: "COMPLETED" | "FAILED" | "PENDING"
+  status: "COMPLETED" | "FAILED" | "PENDING" | "REFUNDED"
 ): Promise<Transaction> => {
   const [updatedTx] = await db
     .update(transactions)
